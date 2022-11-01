@@ -60,7 +60,7 @@ public class FileSelector : MonoBehaviour
 	/// <summary>
 	/// 	- The window dimensions.
 	/// </summary>
-	public Rect windowDimensions = new Rect(0,0,800,800);
+	public Rect windowDimensions = new Rect(0,0, 800, 800);
 	
 	#endregion
 	
@@ -169,7 +169,8 @@ public class FileSelector : MonoBehaviour
 	{	
 		if(open)
 		{
-			if(center) windowDimensions.center = new Vector2(Screen.width*0.5f, Screen.height*0.5f);
+			windowDimensions = new Rect(0, 0, 800 * Screen.width / 1920, 800 * Screen.width / 1920);
+			if (center) windowDimensions.center = new Vector2(Screen.width*0.5f, Screen.height*0.5f);
 			GUI.Window(0, windowDimensions, DrawFileSelector, "Âûבונטעו פאיכ " + extension);
 		}
 	}
@@ -486,7 +487,7 @@ public class FileSelector : MonoBehaviour
 		
 		return files.ToArray();
 	}
-	
+
 	#endregion
 }
 

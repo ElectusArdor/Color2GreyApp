@@ -11,10 +11,10 @@ public class FileSelectorStyles : MonoBehaviour {
 
     private void OnGUI()
     {
-		FileSelector.windowStyle.fontSize = (int)24;
-		FileSelector.buttonStyle.fontSize = (int)20;
-		FileSelector.titleStyle.fontSize = (int)24;
-		FileSelector.labelStyle.fontSize = (int)24;
-		FileSelector.textFieldStyle.fontSize = (int)20;
+		FileSelector.windowStyle.fontSize = (int)(24 * Screen.width / 1920);
+		FileSelector.buttonStyle.fontSize = (int)(20 * Screen.width / 1920);
+		FileSelector.titleStyle.fontSize = (int)(24 * Screen.width / 1920);
+		FileSelector.labelStyle.fontSize = (int)(24 * Screen.width / 1920);
+		FileSelector.textFieldStyle.fontSize = (int)(20 * Screen.width / 1920);
 	}
 }

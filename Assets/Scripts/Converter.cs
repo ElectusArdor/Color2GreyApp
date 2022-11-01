@@ -1,71 +1,99 @@
+using System;
 using UnityEngine;
 using System.Drawing;
-using System.IO;
 using System.Drawing.Imaging;
 using UI = UnityEngine.UI;
+using System.Runtime.InteropServices;
+using System.IO;
 
 public class Converter : MonoBehaviour
 {
-    [SerializeField] private UI.Image OrigImg, ConvImg;
     [SerializeField] private UI.Text TextInfo;
-    [SerializeField] private UI.Button ConvertBtn;
+    [SerializeField] private UI.Button ConvertBtn, SaveBtn, OpenImgBtn;
 
-    private Sprite newSprite;
-    private Bitmap origImgBitmap, convImgBitmap;
+    private ConverterView CV;
+    private Bitmap imgBitmap;
     private Image convImg;
     private string fileName;
 
     private void Start()
     {
-        Screen.SetResolution(Mathf.RoundToInt(Screen.width * 0.8f), Mathf.RoundToInt(Screen.height * 0.8f), false, 0);
+        CV = Camera.main.GetComponent<ConverterView>();   //  View part of project
     }
 
     public void LoadImg()
     {
+        TextInfo.text = "";
+        OpenImgBtn.interactable = false;
         FileSelector.GetFile(GotFile);
     }
 
     public void ConvertImg()
     {
-        SaveGrayImg(CreateGreyImage());
-        ConvImg.sprite = CreateNewSprite("Gray_" + fileName + ".png");
-        TextInfo.text = "Изображение " + fileName + ".png сохранено.";
         ConvertBtn.interactable = false;
+        convImg = CreateGreyImage(imgBitmap);
+        CV.RenewImage(convImg, 1);
+        SaveBtn.interactable = true;
     }
 
-    private Bitmap CreateGreyImage()
+    public void Save()
     {
-        if (origImgBitmap != null)
+        SaveBtn.interactable = false;
+        SaveGrayImg(convImg);
+        OpenImgBtn.interactable = true;
+    }
+
+    public void OpenFile()
+    {
+        CV.ViewImg(fileName);
+    }
+
+    private Image CreateGreyImage(Bitmap bmp)
+    {
+        if (bmp != null)
         {
-            convImgBitmap = new Bitmap(origImgBitmap.Width, origImgBitmap.Height);
+            PixelFormat pxf = PixelFormat.Format32bppArgb;
+            Rectangle rect = new Rectangle(0, 0, bmp.Width, bmp.Height);
 
-            for (int i = 0; i < origImgBitmap.Width; i++)
+            BitmapData imgBitmapData = bmp.LockBits(rect, ImageLockMode.ReadWrite, pxf);  // Locking an image dataset in memory
+
+            IntPtr ptr = imgBitmapData.Scan0;
+
+            int numBytes = imgBitmapData.Stride * imgBitmapData.Height;
+            byte[] rgbValues = new byte[numBytes];  //  Create data array
+
+            Marshal.Copy(ptr, rgbValues, 0, numBytes);  //    Copying dataset to array
+
+            // Loop through pixels 4 bytes each and change values
+            for (int counter = 0; counter < rgbValues.Length; counter += 4)
             {
-                for (int j = 0; j < origImgBitmap.Height; j++)
-                {
-                    uint pixel = (uint)origImgBitmap.GetPixel(i, j).ToArgb();
+                int value = rgbValues[counter] + rgbValues[counter + 1] + rgbValues[counter + 2];
 
-                    float A = (float)(pixel & 0xFF000000);
-                    float R = (float)((pixel & 0x00FF0000) >> 16);
-                    float G = (float)((pixel & 0x0000FF00) >> 8);
-                    float B = (float)(pixel & 0x000000FF);
+                byte color_b = Convert.ToByte(value / 3);
 
-                    R = G = B = (R + G + B) / 3f;
-                    uint newPixel = (uint)A | ((uint)R << 16) | ((uint)G << 8) | (uint)B;
-
-                    convImgBitmap.SetPixel(i, j, System.Drawing.Color.FromArgb((int)newPixel));
-                }
+                rgbValues[counter] = color_b;
+                rgbValues[counter + 1] = color_b;
+                rgbValues[counter + 2] = color_b;
             }
+
+            Marshal.Copy(rgbValues, 0, ptr, numBytes);  // Copying the dataset back into the image
+
+            bmp.UnlockBits(imgBitmapData);    //  Unlocking an image dataset in memory
         }
-        return convImgBitmap;
+        return bmp;
     }
 
-    private Image SaveGrayImg(Bitmap convImgBitmap)
+    private void SaveGrayImg(Image img)
     {
-        convImg = convImgBitmap;
-        convImg.Save("Gray_" + fileName + ".png", ImageFormat.Png);
-        
-        return convImg;
+        try
+        {
+            img.Save(fileName, ImageFormat.Png);
+            TextInfo.text = "Файл сохранён " + fileName;
+        }
+        catch
+        {
+            TextInfo.text = "Не удалось сохранить файл";
+        }
     }
 
     private void GotFile(FileSelector.Status status, string path)
@@ -74,35 +102,15 @@ public class Converter : MonoBehaviour
         {
             try
             {
-                origImgBitmap = new Bitmap(path);
-                OrigImg.sprite = CreateNewSprite(path);
+                imgBitmap = new Bitmap(path);
                 ConvertBtn.interactable = true;
+                CV.RenewImage(imgBitmap, 0);
+                fileName = Path.GetDirectoryName(path) + "\\Gray_" + Path.GetFileName(path);
             }
             catch
             {
-                TextInfo.text = "Не получается открыть файл";
+                TextInfo.text = "Не удалось открыть файл";
             }
         }
-    }
-
-    private Sprite CreateNewSprite(string path)
-    {
-        byte[] data = File.ReadAllBytes(path);
-        Texture2D texture = new Texture2D(64, 64, TextureFormat.ARGB32, false);
-        texture.LoadImage(data);
-        fileName = Path.GetFileNameWithoutExtension(path);
-        texture.name = fileName;
-        newSprite = Sprite.Create(texture, new Rect(0.0f, 0.0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100.0f);
-        Fit2Sprite(OrigImg, newSprite);
-        Fit2Sprite(ConvImg, newSprite);
-        return newSprite;
-    }
-
-    public void Fit2Sprite(UI.Image img, Sprite sprite)
-    {
-        if (sprite.textureRect.width > sprite.textureRect.height)
-            img.transform.localScale = new Vector2(1f, sprite.textureRect.height / sprite.textureRect.width);
-        else
-            img.transform.localScale = new Vector2(sprite.textureRect.width / sprite.textureRect.height, 1f);
     }
 }
